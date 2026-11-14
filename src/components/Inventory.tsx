@@ -1,10 +1,9 @@
-import { useLiveQuery } from 'dexie-react-hooks';
 import { useMemo, useState } from 'react';
 import { FINISH_LABEL, type InventoryItem } from '../types';
-import { db } from '../lib/db';
 import { importJsonBackup, saveOrShare, stamp, toJsonBackup, toManaBoxCsv, toSimpleCsv } from '../lib/export';
 import { money, rarityShort, timeAgo } from '../lib/format';
 import { changeQuantity, clearInventory, removeItem, totals, undoLastScan, updateItem } from '../lib/inventory';
+import { useInventoryItems, useInventoryLoadError } from '../lib/inventoryStore';
 import { useSettings } from '../lib/settings';
 import { AddControls, Stepper, type AddState } from './AddControls';
 import { Icon } from './Icons';
@@ -20,7 +19,8 @@ function priceOf(i: InventoryItem, currency: 'usd' | 'eur'): number | null {
 export function Inventory() {
   const [settings] = useSettings();
   const toast = useToast();
-  const items = useLiveQuery(() => db.inventory.toArray(), []);
+  const items = useInventoryItems();
+  const loadError = useInventoryLoadError();
   const [q, setQ] = useState('');
   const [setFilter, setSetFilter] = useState('');
   const [sort, setSort] = useState<Sort>('recent');
@@ -183,7 +183,11 @@ export function Inventory() {
 
       {items === undefined ? (
         <div className="center" style={{ padding: 30 }}>
-          <span className="spinner" />
+          {loadError ? (
+            <p className="small muted">Sin conexión con la base de datos: {loadError}</p>
+          ) : (
+            <span className="spinner" />
+          )}
         </div>
       ) : filtered.length === 0 ? (
         <div className="empty">
@@ -266,8 +270,8 @@ export function Inventory() {
               />
             </label>
             <p className="small muted" style={{ margin: '4px 0' }}>
-              El inventario vive en este dispositivo (IndexedDB). Exporta un respaldo JSON de vez en cuando; se puede
-              importar en otro celular y las cantidades se suman.
+              El inventario vive en Supabase y se ve igual en todos los dispositivos que abran la app (necesita
+              internet). Exporta un respaldo JSON de vez en cuando por si acaso.
             </p>
             <button type="button" className="btn btn-danger" onClick={() => void wipe()}>
               <Icon name="trash" /> Vaciar inventario

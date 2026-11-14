@@ -19,6 +19,11 @@ export interface KV {
   updatedAt: number;
 }
 
+/**
+ * El inventario y el historial de escaneos ya no se guardan aquí: viven en Supabase
+ * (ver `inventory.ts` / `inventoryStore.ts`). `inventory` y `scans` se mantienen solo
+ * para que `migrateLocalInventory.ts` pueda leer y subir una instalación previa a esto.
+ */
 export class ScannerDB extends Dexie {
   inventory!: EntityTable<InventoryItem, 'id'>;
   scans!: EntityTable<ScanEvent, 'id'>;

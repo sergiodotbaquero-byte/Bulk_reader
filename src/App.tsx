@@ -5,6 +5,7 @@ import { Search } from './components/Search';
 import { Settings } from './components/Settings';
 import { TabBar, type Tab } from './components/TabBar';
 import { ToastProvider } from './components/Toast';
+import { migrateLocalInventory } from './lib/migrateLocalInventory';
 import { NameIndex } from './lib/names';
 import { buildNameIndex, updateRecentSetNames } from './lib/nameSources';
 import { fetchSets } from './lib/scryfall';
@@ -48,6 +49,7 @@ export default function App() {
   useEffect(() => {
     void loadIndex();
     void fetchSets().catch(() => undefined);
+    void migrateLocalInventory().catch(() => undefined);
   }, [loadIndex]);
 
   return (

@@ -1,5 +1,6 @@
 import type { Condition, Finish, InventoryItem } from '../types';
-import { db } from './db';
+import { itemToRow, refreshInventory } from './inventoryStore';
+import { supabase } from './supabaseClient';
 
 const MANABOX_HEADER = [
   'Name',
@@ -118,24 +119,34 @@ export async function importJsonBackup(text: string): Promise<{ added: number; m
   if (!Array.isArray(items)) throw new Error('El archivo no tiene el formato de respaldo esperado.');
   let added = 0;
   let merged = 0;
-  await db.transaction('rw', db.inventory, async () => {
-    for (const raw of items) {
-      if (!raw || typeof raw.scryfallId !== 'string' || typeof raw.quantity !== 'number') continue;
-      const { id: _id, ...item } = raw;
-      void _id;
-      const twin = await db.inventory
-        .where('[scryfallId+finish+condition+lang]')
-        .equals([item.scryfallId, item.finish, item.condition, item.lang])
-        .first();
-      if (twin) {
-        await db.inventory.update(twin.id!, { quantity: twin.quantity + item.quantity, updatedAt: Date.now() });
-        merged++;
-      } else {
-        await db.inventory.add({ ...item, notes: item.notes ?? '', updatedAt: Date.now() });
-        added++;
-      }
+  for (const raw of items) {
+    if (!raw || typeof raw.scryfallId !== 'string' || typeof raw.quantity !== 'number') continue;
+    const { id: _id, ...item } = raw;
+    void _id;
+    const { data: twin, error: findErr } = await supabase
+      .from('inventory_items')
+      .select('id, quantity')
+      .eq('scryfall_id', item.scryfallId)
+      .eq('finish', item.finish)
+      .eq('condition', item.condition)
+      .eq('lang', item.lang)
+      .maybeSingle();
+    if (findErr) throw findErr;
+    if (twin) {
+      const { error } = await supabase
+        .from('inventory_items')
+        .update({ quantity: twin.quantity + item.quantity, updated_at: Date.now() })
+        .eq('id', twin.id);
+      if (error) throw error;
+      merged++;
+    } else {
+      const full: InventoryItem = { ...item, notes: item.notes ?? '', updatedAt: Date.now() };
+      const { error } = await supabase.from('inventory_items').insert(itemToRow(full));
+      if (error) throw error;
+      added++;
     }
-  });
+  }
+  await refreshInventory();
   return { added, merged };
 }
 

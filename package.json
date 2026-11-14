@@ -17,6 +17,7 @@
     "names:fix": "node scripts/fix-ambiguous-names.mjs es pt"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.0",
     "dexie": "^4.4.7",
     "dexie-react-hooks": "^4.4.0",
     "react": "^19.3.1",

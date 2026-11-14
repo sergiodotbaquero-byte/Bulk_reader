@@ -94,6 +94,28 @@ automáticamente (también si la esquina dice `SP` o `PT`); se guardan con el no
 - Los datos viven en el navegador del dispositivo: exporta un respaldo de vez en cuando. Si borras los datos
   del sitio en el navegador, se pierde el inventario.
 
+## Base de datos
+
+El inventario (`inventory_items`) y el historial de escaneos para deshacer (`scan_events`) viven en un
+proyecto de **Supabase** (Postgres), no en el navegador: así se ve el mismo inventario desde el celular y
+desde el PC. La app no tiene login — usa la clave pública (`anon`/`publishable`) del proyecto directamente,
+y las políticas RLS de esas dos tablas están abiertas (`for all to anon using (true)`), así que **cualquiera
+con la URL del proyecto puede leer y escribir ese inventario**. Es la configuración correcta para "yo soy el
+único que la usa" (la elegida al armar esto); si en algún momento la va a usar más de una persona hace falta
+agregar login (Supabase Auth) y políticas por usuario.
+
+`src/lib/supabaseClient.ts` trae la URL y la clave de ese proyecto como valores por defecto, así que funciona
+tal cual al clonar o desplegar. Para apuntar a otro proyecto de Supabase (otra cuenta, entorno de pruebas),
+definí estas variables antes de `npm run dev` / `npm run build` (o en las variables de entorno de Netlify):
+
+```
+VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_...
+```
+
+La primera vez que corre con el código nuevo, la app sube sola (una sola vez, sumando cantidades si hace
+falta) lo que haya quedado en el IndexedDB viejo de cada dispositivo — el respaldo local no se borra.
+
 ## Comandos
 
 | Comando                 | Qué hace                                                                 |
@@ -149,8 +171,11 @@ del archivo y baja sola sus nombres en esos idiomas (se guardan en IndexedDB). P
 ```
 src/lib/        detect.ts (detección de la carta y franjas), image.ts (recortes y preprocesado),
                 ocr.ts (Tesseract), names.ts (índice difuso multilingüe), nameSources.ts (de dónde salen
-                los nombres), collector.ts (esquina), scryfall.ts (API + caché), db.ts (Dexie/IndexedDB),
-                inventory.ts, export.ts, camera.ts (cámara, zoom, linterna), settings.ts, addCard.ts
+                los nombres), collector.ts (esquina), scryfall.ts (API + caché en IndexedDB vía db.ts),
+                supabaseClient.ts (cliente Supabase), inventoryStore.ts (estado reactivo del inventario +
+                tiempo real), inventory.ts (altas/bajas contra Supabase), migrateLocalInventory.ts (sube el
+                IndexedDB viejo una sola vez), export.ts, camera.ts (cámara, zoom, linterna), settings.ts,
+                addCard.ts
 src/components/ Scanner, Inventory, Search, Settings, PrintingPicker, AddControls, Sheet, Toast, TabBar
 scripts/        copy-tesseract.mjs (motor + idioma a public/tesseract), build-names.mjs (nombres es/pt),
                 make_icons.py
@@ -167,7 +192,8 @@ public/names/   es.json, pt.json (generados)
 - Los precios son los de Scryfall en el momento de agregar (se refrescan al volver a agregar la misma carta).
 - Si falla la consulta a Scryfall, el panel se vacía en vez de dejar la carta anterior en pantalla: así el
   botón **Agregar** nunca suma al inventario la carta del escaneo pasado.
-- No hay sincronización entre dispositivos: el siguiente paso natural es un backend (Supabase, Firebase) o
-  simplemente juntar los respaldos JSON.
+- El inventario vive en Supabase (ver sección **Base de datos**), así que **escanear necesita internet**: sin
+  red ni Scryfall ni el guardado funcionan. Al abrir la app con red, el inventario se ve igual en todos los
+  dispositivos (y se actualiza solo, en vivo, si lo cambias desde otro).
 
 Esta app no está afiliada a Scryfall ni a Wizards of the Coast. Magic: The Gathering es marca de Wizards of the Coast.
