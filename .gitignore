@@ -1,0 +1,10 @@
+node_modules
+dist
+dev-dist
+public/tesseract
+.vite
+*.local
+.DS_Store
+
+# Herramientas locales de Claude Code (enlaces simbólicos a .agents/skills)
+.claude/

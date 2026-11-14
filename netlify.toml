@@ -1,0 +1,29 @@
+# Netlify: build de la PWA. `prebuild` copia el worker, el WASM y el idioma de
+# tesseract desde node_modules a public/tesseract, por eso esa carpeta no está
+# en el repo y aun así termina en dist/.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# La app es de una sola página: cualquier ruta que no sea un archivo real
+# devuelve index.html (Netlify solo aplica esto si no hay archivo que coincida).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# El service worker no se cachea: así una versión nueva se detecta al abrir.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Los datos del idioma vienen comprimidos y tesseract los descomprime él mismo:
+# hay que entregarlos tal cual, sin que el navegador los desinfle antes.
+[[headers]]
+  for = "/tesseract/lang/*"
+  [headers.values]
+    Content-Type = "application/octet-stream"
